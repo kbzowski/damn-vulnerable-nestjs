@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  vulnerable-shop:
+    build: .
+    container_name: vulnerable-shop
+    # VULNERABILITY: Running in privileged mode
+    privileged: true
+    # VULNERABILITY: No resource limits
+    # VULNERABILITY: Mapping unnecessary ports
+    ports:
+      - "3000:3000"   # Main application
+      - "8080:8080"   # Additional HTTP port (unnecessary)
+      - "22:22"       # SSH access (DANGEROUS)
+      - "9229:9229"   # Node.js debug port (DANGEROUS)
+      - "5432:5432"   # PostgreSQL port (unnecessary)
+      - "3306:3306"   # MySQL port (unnecessary)
+      - "6379:6379"   # Redis port (unnecessary)
+      - "27017:27017" # MongoDB port (unnecessary)
+    environment:
+      # VULNERABILITY: Hardcoded secrets in docker-compose
+      - NODE_ENV=production
+      - DATABASE_URL=file:./dev.db
+      - JWT_SECRET=super-secret-key-123
+      - JWT_EXPIRES_IN=30d
+      - ADMIN_EMAIL=admin@shop.com
+      - ADMIN_PASSWORD=password123
+      - UPLOAD_PATH=/app/uploads
+      - MAX_FILE_SIZE=104857600
+      - PAYMENT_WEBHOOK_SECRET=webhook-secret-123
+      - THIRD_PARTY_API_KEY=sk-12345abcdef67890
+      - ALLOWED_ORIGINS=*
+      - RATE_LIMIT_ENABLED=false
+      - LOG_LEVEL=debug
+      - LOG_SENSITIVE_DATA=true
+      # VULNERABILITY: Exposing cloud credentials
+      - AWS_ACCESS_KEY_ID=AKIA123456789EXAMPLE
+      - AWS_SECRET_ACCESS_KEY=abcd1234efgh5678ijkl9012mnop3456qrst7890
+      - DOCKER_REGISTRY_PASSWORD=dockerhub123
+    volumes:
+      # VULNERABILITY: Mounting sensitive host directories
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket access
+      - /etc/passwd:/etc/passwd:ro                  # Host password file
+      - /etc/shadow:/etc/shadow:ro                  # Host shadow file
+      - /proc:/host/proc:ro                         # Host processes
+      - /sys:/host/sys:ro                           # Host system info
+      - /:/rootfs:ro                                # Entire host filesystem
+      # VULNERABILITY: Mounting upload directory without restrictions
+      - ./uploads:/app/uploads:rw
+      - ./logs:/app/logs:rw
+      # VULNERABILITY: Mounting source code for "hot reload"
+      - .:/app:rw
+    # VULNERABILITY: Dangerous capabilities
+    cap_add:
+      - SYS_ADMIN     # System administration
+      - NET_ADMIN     # Network administration
+      - SYS_PTRACE    # Process tracing
+      - SYS_MODULE    # Module loading
+      - DAC_OVERRIDE  # Bypass file permissions
+    # VULNERABILITY: No security options
+    security_opt:
+      - seccomp:unconfined  # Disable seccomp
+      - apparmor:unconfined # Disable AppArmor
+    # VULNERABILITY: No network restrictions
+    network_mode: host
+    # VULNERABILITY: No restart policy limits
+    restart: always
+    # VULNERABILITY: Dangerous syscalls allowed
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+    # VULNERABILITY: No user namespace mapping
+    user: "0:0"  # Running as root
+    
+  # VULNERABILITY: Unnecessary database service exposing default credentials
+  vulnerable-db:
+    image: postgres:13
+    container_name: vulnerable-db
+    environment:
+      # VULNERABILITY: Default/weak database credentials
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=vulnerable_shop
+    ports:
+      # VULNERABILITY: Exposing database to external access
+      - "5432:5432"
+    volumes:
+      # VULNERABILITY: Database data without encryption
+      - ./db_data:/var/lib/postgresql/data
+      # VULNERABILITY: Mounting init scripts with potential backdoors
+      - ./db_init:/docker-entrypoint-initdb.d
+    # VULNERABILITY: No resource limits on database
+    
+  # VULNERABILITY: Redis cache without authentication
+  vulnerable-redis:
+    image: redis:6
+    container_name: vulnerable-redis
+    ports:
+      # VULNERABILITY: Redis exposed without password
+      - "6379:6379"
+    command: redis-server --requirepass "" --protected-mode no
+    volumes:
+      - ./redis_data:/data
+      
+  # VULNERABILITY: Monitoring service that exposes metrics
+  vulnerable-monitor:
+    image: prom/prometheus
+    container_name: vulnerable-monitor
+    ports:
+      - "9090:9090"
+    volumes:
+      # VULNERABILITY: Prometheus config exposing all metrics
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      # VULNERABILITY: Admin API enabled without authentication
+      - '--web.enable-admin-api'
+      
+  # VULNERABILITY: File sharing service
+  vulnerable-files:
+    image: nginx:alpine
+    container_name: vulnerable-files
+    ports:
+      - "8081:80"
+    volumes:
+      # VULNERABILITY: Exposing entire application directory via HTTP
+      - .:/usr/share/nginx/html:ro
+      # VULNERABILITY: Custom nginx config allowing directory listing
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      
+networks:
+  default:
+    # VULNERABILITY: No network segmentation
+    driver: bridge
+    driver_opts:
+      # VULNERABILITY: Overly permissive network settings
+      com.docker.network.enable_ipv6: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+
+# VULNERABILITY: No secrets management
+# VULNERABILITY: No health checks
+# VULNERABILITY: No proper logging configuration
+# VULNERABILITY: No security scanning
+# VULNERABILITY: No vulnerability assessment
+# VULNERABILITY: No image signing verification

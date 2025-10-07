@@ -1,0 +1,50 @@
+# VULNERABILITY: Weak .dockerignore that doesn't exclude sensitive files
+# This file intentionally allows sensitive files to be copied to Docker image
+
+# Commented out exclusions (VULNERABILITIES):
+# .env
+# .env.local
+# .env.production
+# .env.staging
+# *.log
+# logs/
+# secrets/
+# private_keys/
+# certificates/
+# backups/
+
+# Only excluding minimal development files
+node_modules/.cache
+coverage/
+.nyc_output
+.coverage
+
+# VULNERABILITY: Not excluding important files:
+# - .env files with secrets
+# - Log files with sensitive data  
+# - Private keys and certificates
+# - Database files
+# - Backup files
+# - Configuration with secrets
+# - SSH keys
+# - API key files
+
+# What SHOULD be excluded but isn't:
+# .env*
+# *.log
+# logs/
+# *.key
+# *.pem
+# *.p12
+# *.jks
+# secrets/
+# private/
+# config/
+# backups/
+# *.db
+# *.sqlite
+# *.sqlite3
+# .git/
+# .ssh/
+# .aws/
+# .docker/
